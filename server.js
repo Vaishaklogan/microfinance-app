@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -9,8 +10,10 @@ const PORT = process.env.PORT || 8080;
 // Middleware
 app.use(cors());
 app.use(express.json());
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, 'dist')));
 
-// PostgreSQL connection using Render's DATABASE_URL or your provided credentials
+// PostgreSQL connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://finance_db_u5rk_user:mrorwFig4OsnXJ3pLzV0vEdpYGHuRVdB@dpg-d5n1a16mcj7s73cct0ig-a.oregon-postgres.render.com/finance_db_u5rk',
     ssl: { rejectUnauthorized: false }
@@ -333,17 +336,14 @@ app.delete('/api/data/clear', async (req, res) => {
     }
 });
 
-// Root route
-app.get('/', (req, res) => {
-    res.json({
-        message: 'Microfinance API Server',
-        endpoints: ['/api/groups', '/api/members', '/api/collections', '/api/health']
-    });
+// Catch-all route to serve React app for non-API routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Initialize database and start server
 initDatabase().then(() => {
     app.listen(PORT, () => {
-        console.log(`🚀 Microfinance Backend running on port ${PORT}`);
+        console.log(`🚀 Microfinance App running on port ${PORT}`);
     });
 });
