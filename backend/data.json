@@ -1,0 +1,30 @@
+{
+  "groups": [
+    {
+      "id": "62060605-8f7e-4986-a201-e197b6b93b1d",
+      "groupNo": "G001",
+      "groupName": "Vaishak Group",
+      "groupHeadName": "Vaishak",
+      "headContact": "987654321",
+      "meetingDay": "Sunday",
+      "formationDate": "2026-02-09"
+    }
+  ],
+  "members": [
+    {
+      "id": "ea7f5042-e597-4110-b3ae-e4f6ef74ccf7",
+      "memberId": "M001",
+      "memberName": "Vaishak",
+      "address": "2/148        thiru-vi-ka nagar,pavithiramanickam",
+      "landmark": "church",
+      "groupNo": "G001",
+      "loanAmount": 10000,
+      "totalInterest": 4000,
+      "weeks": 14,
+      "startDate": "2026-02-09",
+      "status": "Active",
+      "notes": ""
+    }
+  ],
+  "collections": []
+}
