@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
-import { DueCollection } from '@/types';
+import type { DueCollection } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
