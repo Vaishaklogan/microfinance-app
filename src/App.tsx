@@ -4,17 +4,18 @@ import { Dashboard } from '@/sections/Dashboard';
 import { GroupsPage } from '@/sections/GroupsPage';
 import { MembersPage } from '@/sections/MembersPage';
 import { CollectionsPage } from '@/sections/CollectionsPage';
+import { DailyCollectionPage } from '@/sections/DailyCollectionPage';
 import { MemberSummaryPage } from '@/sections/MemberSummaryPage';
 import { GroupSummaryPage } from '@/sections/GroupSummaryPage';
 import { OverallSummaryPage } from '@/sections/OverallSummaryPage';
 import { Button } from '@/components/ui/button';
-import { 
-  LayoutDashboard, 
-  Users, 
-  UserCircle, 
-  Receipt, 
-  BarChart3, 
-  PieChart, 
+import {
+  LayoutDashboard,
+  Users,
+  UserCircle,
+  Receipt,
+  BarChart3,
+  PieChart,
   TrendingUp,
   Menu,
   X
@@ -29,7 +30,8 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
     { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { view: 'groups', label: 'Groups', icon: Users },
     { view: 'members', label: 'Members', icon: UserCircle },
-    { view: 'collections', label: 'Collections', icon: Receipt },
+    { view: 'dailyCollection', label: 'Daily Collection', icon: Receipt },
+    { view: 'collections', label: 'History', icon: Receipt },
     { view: 'memberSummary', label: 'Member Summary', icon: BarChart3 },
     { view: 'groupSummary', label: 'Group Summary', icon: PieChart },
     { view: 'overallSummary', label: 'Overall Report', icon: TrendingUp },
@@ -43,7 +45,7 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
           <h1 className="text-xl font-bold text-center">Microfinance</h1>
           <p className="text-xs text-slate-400 text-center">Management System</p>
         </div>
-        
+
         <div className="space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -51,11 +53,10 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
               <Button
                 key={item.view}
                 variant={currentView === item.view ? 'secondary' : 'ghost'}
-                className={`w-full justify-start gap-3 ${
-                  currentView === item.view 
-                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                className={`w-full justify-start gap-3 ${currentView === item.view
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'text-slate-300 hover:text-white hover:bg-slate-800'
-                }`}
+                  }`}
                 onClick={() => setView(item.view)}
               >
                 <Icon className="w-4 h-4" />
@@ -73,8 +74,8 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
             <h1 className="text-lg font-bold">Microfinance</h1>
             <p className="text-xs text-slate-400">Management System</p>
           </div>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="text-white"
@@ -82,7 +83,7 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </Button>
         </div>
-        
+
         {mobileMenuOpen && (
           <div className="bg-slate-900 text-white p-4 space-y-2">
             {navItems.map((item) => {
@@ -91,11 +92,10 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
                 <Button
                   key={item.view}
                   variant={currentView === item.view ? 'secondary' : 'ghost'}
-                  className={`w-full justify-start gap-3 ${
-                    currentView === item.view 
-                      ? 'bg-blue-600 text-white' 
+                  className={`w-full justify-start gap-3 ${currentView === item.view
+                      ? 'bg-blue-600 text-white'
                       : 'text-slate-300'
-                  }`}
+                    }`}
                   onClick={() => {
                     setView(item.view);
                     setMobileMenuOpen(false);
@@ -121,6 +121,8 @@ function MainContent({ view }: { view: ViewType }) {
       return <GroupsPage />;
     case 'members':
       return <MembersPage />;
+    case 'dailyCollection':
+      return <DailyCollectionPage />;
     case 'collections':
       return <CollectionsPage />;
     case 'memberSummary':

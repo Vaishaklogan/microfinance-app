@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import type { Group, Member, Collection, MemberSummary, GroupSummary, OverallSummary, WeeklyData } from '@/types';
+import type { Group, Member, Collection, MemberSummary, GroupSummary, OverallSummary, WeeklyData, DueCollection } from '@/types';
 import { API_BASE } from '@/config/api';
 
 interface DataContextType {
@@ -29,6 +29,8 @@ interface DataContextType {
   importFromJSON: (json: string) => Promise<void>;
   clearAllData: () => Promise<void>;
   refreshData: () => Promise<void>;
+  getDueCollections: (date: Date) => Promise<DueCollection[]>;
+  submitBulkCollection: (payments: any[]) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -376,6 +378,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const getDueCollections = useCallback(async (date: Date) => {
+    try {
+      const dateStr = date.toISOString();
+      const res = await fetch(`${API_BASE}/collections/due?date=${dateStr}`);
+      if (!res.ok) throw new Error('Failed to fetch due collections');
+      return await res.json();
+    } catch (err) {
+      console.error('Error fetching due collections:', err);
+      throw err;
+    }
+  }, []);
+
+  const submitBulkCollection = useCallback(async (payments: any[]) => {
+    try {
+      const res = await fetch(`${API_BASE}/collections/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payments })
+      });
+      if (!res.ok) throw new Error('Failed to submit bulk collections');
+      await fetchData();
+    } catch (err) {
+      console.error('Error submitting bulk collections:', err);
+      throw err;
+    }
+  }, [fetchData]);
+
   const value = useMemo(() => ({
     groups,
     members,
@@ -402,7 +431,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     exportToJSON,
     importFromJSON,
     clearAllData,
-    refreshData
+    refreshData,
+    getDueCollections,
+    submitBulkCollection
   }), [
     groups, members, collections, loading, error,
     addGroup, updateGroup, deleteGroup,
@@ -412,7 +443,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     getGroupSummary, getAllGroupSummaries,
     getOverallSummary, getWeeklyData,
     getCollectionsForWeek, getExpectedCollectionsForWeek,
-    exportToJSON, importFromJSON, clearAllData, refreshData
+    exportToJSON, importFromJSON, clearAllData, refreshData, fetchData,
+    getDueCollections, submitBulkCollection
   ]);
 
   return (

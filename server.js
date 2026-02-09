@@ -217,6 +217,179 @@ app.delete('/api/members/:id', async (req, res) => {
 
 // ============== COLLECTIONS API ==============
 
+import { differenceInCalendarWeeks, parseISO, format, startOfDay, addWeeks } from 'date-fns';
+
+// ... existing code ...
+
+// ============== COLLECTIONS API ==============
+
+// Get Collections Due for a specific date (Daily View)
+app.get('/api/collections/due', async (req, res) => {
+    try {
+        const { date } = req.query;
+        if (!date) return res.status(400).json({ error: 'Date is required' });
+
+        const selectedDate = parseISO(date.toString());
+        const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+
+        // Fetch all active members
+        const membersResult = await pool.query("SELECT * FROM members WHERE status = 'Active'");
+        const members = membersResult.rows.map(toCamelCase);
+
+        // Fetch all collections up to this date
+        const collectionsResult = await pool.query("SELECT * FROM collections");
+        const allCollections = collectionsResult.rows.map(toCamelCase);
+
+        const dueList = members.map(member => {
+            const startDate = parseISO(member.startDate);
+
+            // Calculate which week number this date falls into relative to member start date
+            // Week 1 starts on startDate.
+            const weeksPassed = differenceInCalendarWeeks(selectedDate, startDate, { weekStartsOn: 1 }); // Assuming Monday start, adjust as needed
+            const currentWeekNo = weeksPassed + 1;
+
+            // If updated date is before start date, or after loan completion, handle accordingly
+            if (currentWeekNo < 1) return null;
+            // Optional: Filter out completed members if they are marked active but past weeks?
+            // if (currentWeekNo > member.weeks) ...
+
+            const totalPayable = parseFloat(member.loanAmount) + parseFloat(member.totalInterest);
+            const weeklyInstallment = Math.ceil(totalPayable / member.weeks);
+
+            // Calculate Total Expected up to this week
+            const totalExpected = weeklyInstallment * currentWeekNo;
+
+            // Calculate Total Paid by this member
+            const memberCollections = allCollections.filter(c => c.memberId === member.memberId);
+            const totalPaid = memberCollections.reduce((sum, c) => sum + parseFloat(c.amountPaid), 0);
+
+            // Check if already paid for THIS specific date/week?
+            // The user wants "Daily" view. 
+            // If they already paid today, show it.
+            const paidToday = memberCollections
+                .filter(c => c.collectionDate === formattedDate)
+                .reduce((sum, c) => sum + parseFloat(c.amountPaid), 0);
+
+            // Arrears = (Expected up to last week) - (Paid up to last week)
+            // But simplified: Total Expected (inc this week) - Total Paid (inc today)
+            // If they paid today, specific "Due" should decrease?
+            // User says: "balance 200 should be added to the member in upcoming week"
+            // So Due = (Total Expected up to Current Week) - (Total Paid So Far)
+
+            let currentDue = totalExpected - totalPaid;
+            if (currentDue < 0) currentDue = 0; // Overpaid
+
+            return {
+                ...member,
+                currentWeekNo,
+                weeklyInstallment,
+                totalPaid,
+                paidToday,
+                currentDue: Math.round(currentDue * 100) / 100,
+                status: currentDue <= 0 ? 'Paid' : 'Due'
+            };
+        }).filter(item => item !== null && item.currentDue > 0); // Only show those with due amount? Or all active?
+
+        // User wants to see everyone to enter collections. 
+        // Showing all active members for now, sorting by Group
+        const result = members.map(member => {
+            const startDate = parseISO(member.startDate);
+            const weeksPassed = differenceInCalendarWeeks(selectedDate, startDate, { weekStartsOn: 1 });
+            const currentWeekNo = weeksPassed + 1;
+
+            // If loan hasn't started, skip
+            if (currentWeekNo < 1) return null;
+
+            const totalPayable = parseFloat(member.loanAmount) + parseFloat(member.totalInterest);
+            const weeklyInstallment = Math.ceil(totalPayable / member.weeks);
+
+            const memberCollections = allCollections.filter(c => c.memberId === member.memberId);
+            const totalPaid = memberCollections.reduce((sum, c) => sum + parseFloat(c.amountPaid), 0);
+
+            // Expected amount ideally paid by end of this week
+            const totalExpected = weeklyInstallment * Math.min(currentWeekNo, member.weeks);
+
+            // Outstanding balance for loan
+            const outstandingBalance = totalPayable - totalPaid;
+
+            // Amount Due NOW = Total Expected - Total Paid
+            let amountDue = totalExpected - totalPaid;
+
+            // If they fully paid off loan, due is 0
+            if (outstandingBalance <= 0) amountDue = 0;
+            if (amountDue < 0) amountDue = 0;
+
+            // Paid specifically today (for UI feedback)
+            const paidToday = memberCollections
+                .filter(c => c.collectionDate === formattedDate)
+                .reduce((sum, c) => sum + parseFloat(c.amountPaid), 0);
+
+            return {
+                memberId: member.memberId,
+                memberName: member.memberName,
+                groupNo: member.groupNo,
+                weekNo: currentWeekNo,
+                weeklyInstallment,
+                totalPaid,
+                paidToday,
+                amountDue: Math.round(amountDue * 100) / 100,
+                outstandingBalance: Math.round(outstandingBalance * 100) / 100
+            };
+        }).filter(item => item !== null).sort((a, b) => a.groupNo.localeCompare(b.groupNo));
+
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Bulk Insert Collections
+app.post('/api/collections/bulk', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { payments } = req.body; // Array of { memberId, amount, date, weekNo, groupNo }
+        if (!Array.isArray(payments) || payments.length === 0) {
+            return res.status(400).json({ error: 'No payments provided' });
+        }
+
+        await client.query('BEGIN');
+
+        const results = [];
+        for (const payment of payments) {
+            const { memberId, amount, date, weekNo, groupNo, collectedBy } = payment;
+
+            // Calculate Principal/Interest Split
+            // We need member details for this
+            const memberResult = await client.query('SELECT loan_amount, total_interest FROM members WHERE member_id = $1', [memberId]);
+            if (memberResult.rows.length === 0) continue; // Skip invalid members
+
+            const member = memberResult.rows[0];
+            const totalPayable = parseFloat(member.loan_amount) + parseFloat(member.total_interest);
+            const principalRatio = parseFloat(member.loan_amount) / totalPayable;
+            const interestRatio = parseFloat(member.total_interest) / totalPayable;
+
+            const principalPaid = Math.round(amount * principalRatio * 100) / 100;
+            const interestPaid = Math.round(amount * interestRatio * 100) / 100; // or amount - principalPaid to be exact
+
+            const id = uuidv4();
+            await client.query(
+                'INSERT INTO collections (id, collection_date, member_id, group_no, week_no, amount_paid, principal_paid, interest_paid, status, collected_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                [id, date, memberId, groupNo, weekNo, amount, principalPaid, interestPaid, 'Paid', collectedBy || 'Admin']
+            );
+            results.push({ id, memberId, amount });
+        }
+
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Bulk payments recorded', count: results.length, results });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: error.message });
+    } finally {
+        client.release();
+    }
+});
+
 app.get('/api/collections', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM collections ORDER BY week_no, collection_date');

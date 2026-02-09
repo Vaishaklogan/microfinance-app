@@ -95,4 +95,16 @@ export interface WeeklyData {
   numberOfPayments: number;
 }
 
-export type ViewType = 'dashboard' | 'groups' | 'members' | 'collections' | 'memberSummary' | 'groupSummary' | 'overallSummary';
+export type ViewType = 'dashboard' | 'groups' | 'members' | 'collections' | 'dailyCollection' | 'memberSummary' | 'groupSummary' | 'overallSummary';
+export interface DueCollection {
+  memberId: string;
+  memberName: string;
+  groupNo: string;
+  weekNo: number;
+  weeklyInstallment: number;
+  totalPaid: number;
+  paidToday: number;
+  amountDue: number;
+  outstandingBalance: number;
+}
+
