@@ -17,6 +17,7 @@ export function GroupsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     groupNo: '',
@@ -35,6 +36,7 @@ export function GroupsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       if (editingGroup) {
         await updateGroup(editingGroup.id, formData);
@@ -56,6 +58,8 @@ export function GroupsPage() {
     } catch (error) {
       console.error(error);
       toast.error('Failed to save group. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -181,8 +185,8 @@ export function GroupsPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                {editingGroup ? 'Update Group' : 'Add Group'}
+              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={submitting}>
+                {submitting ? 'Saving...' : (editingGroup ? 'Update Group' : 'Add Group')}
               </Button>
             </form>
           </DialogContent>
