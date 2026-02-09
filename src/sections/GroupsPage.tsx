@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useData } from '@/context/DataContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ export function GroupsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
-  
+
   const [formData, setFormData] = useState({
     groupNo: '',
     groupName: '',
@@ -26,29 +27,36 @@ export function GroupsPage() {
     formationDate: new Date().toISOString().split('T')[0]
   });
 
-  const filteredGroups = groups.filter(group => 
+  const filteredGroups = groups.filter(group =>
     group.groupNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     group.groupName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     group.groupHeadName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingGroup) {
-      updateGroup(editingGroup.id, formData);
-      setEditingGroup(null);
-    } else {
-      addGroup(formData);
+    try {
+      if (editingGroup) {
+        await updateGroup(editingGroup.id, formData);
+        toast.success('Group updated successfully');
+        setEditingGroup(null);
+      } else {
+        await addGroup(formData);
+        toast.success('Group added successfully');
+      }
+      setFormData({
+        groupNo: '',
+        groupName: '',
+        groupHeadName: '',
+        headContact: '',
+        meetingDay: 'Monday',
+        formationDate: new Date().toISOString().split('T')[0]
+      });
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to save group. Please try again.');
     }
-    setFormData({
-      groupNo: '',
-      groupName: '',
-      groupHeadName: '',
-      headContact: '',
-      meetingDay: 'Monday',
-      formationDate: new Date().toISOString().split('T')[0]
-    });
-    setIsAddDialogOpen(false);
   };
 
   const handleEdit = (group: Group) => {
@@ -89,7 +97,7 @@ export function GroupsPage() {
           <h2 className="text-3xl font-bold text-slate-900">Groups Management</h2>
           <p className="text-slate-500">Manage your microfinance groups</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        <Dialog open={isAddDialogOpen} onOpenChange={(open: boolean) => {
           setIsAddDialogOpen(open);
           if (!open) resetForm();
         }}>
@@ -125,7 +133,7 @@ export function GroupsPage() {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="groupName">Group Name *</Label>
                 <Input
@@ -136,7 +144,7 @@ export function GroupsPage() {
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="groupHeadName">Group Head Name *</Label>
                 <Input
@@ -147,7 +155,7 @@ export function GroupsPage() {
                   required
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="headContact">Contact Number</Label>
@@ -172,7 +180,7 @@ export function GroupsPage() {
                   </select>
                 </div>
               </div>
-              
+
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
                 {editingGroup ? 'Update Group' : 'Add Group'}
               </Button>
