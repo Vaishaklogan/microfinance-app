@@ -92,7 +92,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(group)
       });
-      if (!res.ok) throw new Error('Failed to add group');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to add group: ${res.statusText}`);
+      }
       const newGroup = await res.json();
       setGroups(prev => [...prev, newGroup]);
     } catch (err) {

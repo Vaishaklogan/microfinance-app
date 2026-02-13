@@ -57,7 +57,7 @@ export function GroupsPage() {
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to save group. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to save group');
     } finally {
       setSubmitting(false);
     }
