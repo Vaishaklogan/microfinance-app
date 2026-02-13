@@ -95,7 +95,8 @@ app.get('/api/groups', async (req, res) => {
         const result = await pool.query('SELECT * FROM groups ORDER BY group_no');
         res.json(result.rows.map(toCamelCase));
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching groups:', error);
+        res.status(500).json({ error: error.message || 'Failed to fetch groups', details: error.toString() });
     }
 });
 
@@ -121,7 +122,8 @@ app.post('/api/groups', async (req, res) => {
         );
         res.status(201).json({ id, groupNo, groupName, groupHeadName, headContact, meetingDay, formationDate });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error creating group:', error);
+        res.status(500).json({ error: error.message || 'Failed to create group', details: error.toString() });
     }
 });
 
@@ -134,7 +136,8 @@ app.put('/api/groups/:id', async (req, res) => {
         );
         res.json({ id: req.params.id, groupNo, groupName, groupHeadName, headContact, meetingDay, formationDate });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error updating group:', error);
+        res.status(500).json({ error: error.message || 'Failed to update group', details: error.toString() });
     }
 });
 
@@ -189,7 +192,8 @@ app.post('/api/members', async (req, res) => {
         );
         res.status(201).json({ id, memberId, memberName, address, landmark, groupNo, loanAmount, totalInterest, weeks, startDate, status, notes });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error creating member:', error);
+        res.status(500).json({ error: error.message || 'Failed to create member', details: error.toString() });
     }
 });
 
@@ -339,7 +343,8 @@ app.get('/api/collections/due', async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching due collections:', error);
+        res.status(500).json({ error: error.message || 'Failed to fetch due collections', details: error.toString() });
     }
 });
 
@@ -384,7 +389,8 @@ app.post('/api/collections/bulk', async (req, res) => {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        res.status(500).json({ error: error.message });
+        console.error('Error in bulk collection:', error);
+        res.status(500).json({ error: error.message || 'Bulk collection failed', details: error.toString() });
     } finally {
         client.release();
     }
@@ -454,7 +460,8 @@ app.post('/api/collections', async (req, res) => {
         );
         res.status(201).json({ id, collectionDate, memberId, groupNo, weekNo, amountPaid, principalPaid, interestPaid, status, collectedBy });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error creating collection:', error);
+        res.status(500).json({ error: error.message || 'Failed to create collection', details: error.toString() });
     }
 });
 
