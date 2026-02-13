@@ -15,13 +15,25 @@ const PORT = process.env.PORT || 8080;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Helper to log errors
+const logError = (context, error) => {
+    console.error(`Error in ${context}:`, error);
+    if (error instanceof AggregateError) {
+        console.error('AggregateError details:');
+        error.errors.forEach((e, i) => console.error(`  [${i}]`, e));
+    }
+};
+
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // PostgreSQL connection
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://finance_db_u5rk_user:mrorwFig4OsnXJ3pLzV0vEdpYGHuRVdB@dpg-d5n1a16mcj7s73cct0ig-a.oregon-postgres.render.com/finance_db_u5rk',
-    ssl: { rejectUnauthorized: false }
+    // Hardcoded verified connection string
+    connectionString: 'postgresql://finance_db_u5rk_user:mrorwFig4OsnXJ3pLzV0vEdpYGHuRVdB@dpg-d5n1a16mcj7s73cct0ig-a.oregon-postgres.render.com/finance_db_u5rk',
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000 // Increased timeout for stability
 });
 
 // Initialize database tables
@@ -95,7 +107,7 @@ app.get('/api/groups', async (req, res) => {
         const result = await pool.query('SELECT * FROM groups ORDER BY group_no');
         res.json(result.rows.map(toCamelCase));
     } catch (error) {
-        console.error('Error fetching groups:', error);
+        logError('fetching groups', error);
         res.status(500).json({ error: error.message || 'Failed to fetch groups', details: error.toString() });
     }
 });
@@ -122,7 +134,7 @@ app.post('/api/groups', async (req, res) => {
         );
         res.status(201).json({ id, groupNo, groupName, groupHeadName, headContact, meetingDay, formationDate });
     } catch (error) {
-        console.error('Error creating group:', error);
+        logError('creating group', error);
         res.status(500).json({ error: error.message || 'Failed to create group', details: error.toString() });
     }
 });
@@ -136,7 +148,7 @@ app.put('/api/groups/:id', async (req, res) => {
         );
         res.json({ id: req.params.id, groupNo, groupName, groupHeadName, headContact, meetingDay, formationDate });
     } catch (error) {
-        console.error('Error updating group:', error);
+        logError('updating group', error);
         res.status(500).json({ error: error.message || 'Failed to update group', details: error.toString() });
     }
 });
@@ -192,7 +204,7 @@ app.post('/api/members', async (req, res) => {
         );
         res.status(201).json({ id, memberId, memberName, address, landmark, groupNo, loanAmount, totalInterest, weeks, startDate, status, notes });
     } catch (error) {
-        console.error('Error creating member:', error);
+        logError('creating member', error);
         res.status(500).json({ error: error.message || 'Failed to create member', details: error.toString() });
     }
 });
@@ -343,7 +355,7 @@ app.get('/api/collections/due', async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Error fetching due collections:', error);
+        logError('fetching due collections', error);
         res.status(500).json({ error: error.message || 'Failed to fetch due collections', details: error.toString() });
     }
 });
@@ -460,7 +472,7 @@ app.post('/api/collections', async (req, res) => {
         );
         res.status(201).json({ id, collectionDate, memberId, groupNo, weekNo, amountPaid, principalPaid, interestPaid, status, collectedBy });
     } catch (error) {
-        console.error('Error creating collection:', error);
+        logError('creating collection', error);
         res.status(500).json({ error: error.message || 'Failed to create collection', details: error.toString() });
     }
 });
