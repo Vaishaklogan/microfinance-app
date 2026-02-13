@@ -8,6 +8,8 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Save, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ApiError } from '@/lib/error';
+import { ErrorDialog } from '@/components/ErrorDialog';
 
 export function DailyCollectionPage() {
     const { getDueCollections, submitBulkCollection } = useData();
@@ -15,6 +17,8 @@ export function DailyCollectionPage() {
     const [loading, setLoading] = useState(false);
     const [dues, setDues] = useState<DueCollection[]>([]);
     const [payments, setPayments] = useState<Record<string, string>>({}); // memberId -> amount
+    const [error, setError] = useState<ApiError | Error | null>(null);
+    const [isErrorOpen, setIsErrorOpen] = useState(false);
 
     const fetchDues = async (selectedDate: Date) => {
         setLoading(true);
@@ -32,7 +36,9 @@ export function DailyCollectionPage() {
             setPayments(initialPayments);
         } catch (error) {
             console.error(error);
-            toast.error('Failed to load due collections');
+            setError(error instanceof Error ? error : new Error('Unknown error'));
+            setIsErrorOpen(true);
+            // toast.error('Failed to load due collections');
         } finally {
             setLoading(false);
         }
@@ -72,7 +78,9 @@ export function DailyCollectionPage() {
             fetchDues(date);
         } catch (error) {
             console.error(error);
-            toast.error('Failed to save payments');
+            setError(error instanceof Error ? error : new Error('Unknown error'));
+            setIsErrorOpen(true);
+            // toast.error('Failed to save payments');
         } finally {
             setLoading(false);
         }
@@ -202,6 +210,11 @@ export function DailyCollectionPage() {
                     Save All Payments
                 </Button>
             </div>
+            <ErrorDialog
+                open={isErrorOpen}
+                onOpenChange={setIsErrorOpen}
+                error={error}
+            />
         </div>
     );
 }

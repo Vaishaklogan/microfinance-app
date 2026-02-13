@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Edit, Trash2, Users } from 'lucide-react';
 import type { Group } from '@/types';
+import { ApiError } from '@/lib/error';
+import { ErrorDialog } from '@/components/ErrorDialog';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -18,6 +20,8 @@ export function GroupsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<ApiError | Error | null>(null);
+  const [isErrorOpen, setIsErrorOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     groupNo: '',
@@ -57,7 +61,9 @@ export function GroupsPage() {
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save group');
+      setError(error instanceof Error ? error : new Error('Unknown error'));
+      setIsErrorOpen(true);
+      // toast.error(error instanceof Error ? error.message : 'Failed to save group');
     } finally {
       setSubmitting(false);
     }
@@ -278,6 +284,12 @@ export function GroupsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ErrorDialog
+        open={isErrorOpen}
+        onOpenChange={setIsErrorOpen}
+        error={error}
+      />
     </div>
   );
 }

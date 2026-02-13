@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import type { Group, Member, Collection, MemberSummary, GroupSummary, OverallSummary, WeeklyData, DueCollection } from '@/types';
 import { API_BASE } from '@/config/api';
+import { handleResponse } from '@/lib/error';
 
 interface DataContextType {
   groups: Group[];
@@ -92,11 +93,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(group)
       });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to add group: ${res.statusText}`);
-      }
-      const newGroup = await res.json();
+      const newGroup = await handleResponse(res);
       setGroups(prev => [...prev, newGroup]);
     } catch (err) {
       console.error('Error adding group:', err);
@@ -111,8 +108,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(group)
       });
-      if (!res.ok) throw new Error('Failed to update group');
-      const updatedGroup = await res.json();
+      const updatedGroup = await handleResponse(res);
       setGroups(prev => prev.map(g => g.id === id ? updatedGroup : g));
     } catch (err) {
       console.error('Error updating group:', err);
@@ -123,7 +119,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const deleteGroup = useCallback(async (id: string) => {
     try {
       const res = await fetch(`${API_BASE}/groups/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete group');
+      await handleResponse(res);
       setGroups(prev => prev.filter(g => g.id !== id));
     } catch (err) {
       console.error('Error deleting group:', err);
@@ -139,8 +135,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(member)
       });
-      if (!res.ok) throw new Error('Failed to add member');
-      const newMember = await res.json();
+      const newMember = await handleResponse(res);
       setMembers(prev => [...prev, newMember]);
     } catch (err) {
       console.error('Error adding member:', err);
@@ -155,8 +150,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(member)
       });
-      if (!res.ok) throw new Error('Failed to update member');
-      const updatedMember = await res.json();
+      const updatedMember = await handleResponse(res);
       setMembers(prev => prev.map(m => m.id === id ? updatedMember : m));
     } catch (err) {
       console.error('Error updating member:', err);
@@ -167,7 +161,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const deleteMember = useCallback(async (id: string) => {
     try {
       const res = await fetch(`${API_BASE}/members/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete member');
+      await handleResponse(res);
       setMembers(prev => prev.filter(m => m.id !== id));
     } catch (err) {
       console.error('Error deleting member:', err);
@@ -183,8 +177,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(collection)
       });
-      if (!res.ok) throw new Error('Failed to add collection');
-      const newCollection = await res.json();
+      const newCollection = await handleResponse(res);
       setCollections(prev => [...prev, newCollection]);
     } catch (err) {
       console.error('Error adding collection:', err);
@@ -199,8 +192,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(collection)
       });
-      if (!res.ok) throw new Error('Failed to update collection');
-      const updatedCollection = await res.json();
+      const updatedCollection = await handleResponse(res);
       setCollections(prev => prev.map(c => c.id === id ? updatedCollection : c));
     } catch (err) {
       console.error('Error updating collection:', err);
@@ -211,7 +203,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const deleteCollection = useCallback(async (id: string) => {
     try {
       const res = await fetch(`${API_BASE}/collections/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete collection');
+      await handleResponse(res);
       setCollections(prev => prev.filter(c => c.id !== id));
     } catch (err) {
       console.error('Error deleting collection:', err);
@@ -360,7 +352,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error('Failed to import data');
+      await handleResponse(res);
       await fetchData(); // Refresh data after import
     } catch (err) {
       console.error('Failed to import data:', err);
@@ -371,7 +363,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const clearAllData = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/data/clear`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to clear data');
+      await handleResponse(res);
       setGroups([]);
       setMembers([]);
       setCollections([]);
@@ -385,8 +377,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const dateStr = date.toISOString();
       const res = await fetch(`${API_BASE}/collections/due?date=${dateStr}`);
-      if (!res.ok) throw new Error('Failed to fetch due collections');
-      return await res.json();
+      return await handleResponse(res);
     } catch (err) {
       console.error('Error fetching due collections:', err);
       throw err;
@@ -400,7 +391,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ payments })
       });
-      if (!res.ok) throw new Error('Failed to submit bulk collections');
+      await handleResponse(res);
       await fetchData();
     } catch (err) {
       console.error('Error submitting bulk collections:', err);
