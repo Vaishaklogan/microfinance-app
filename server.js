@@ -1,7 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+// Parse DECIMAL/NUMERIC (OID 1700) as float to ensure numbers in JSON response
+types.setTypeParser(1700, (val) => parseFloat(val));
+
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
