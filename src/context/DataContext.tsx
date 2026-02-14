@@ -43,6 +43,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to ensure valid numbers
+  const ensureNumber = (val: any) => {
+    if (val === null || val === undefined || val === '') return 0;
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+  };
+
   // Fetch all data from backend
   const fetchData = useCallback(async () => {
     try {
@@ -66,8 +73,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       setGroups(groupsData);
-      setMembers(membersData);
-      setCollections(collectionsData);
+
+      // Parse numeric fields for members
+      setMembers(membersData.map((m: any) => ({
+        ...m,
+        loanAmount: ensureNumber(m.loanAmount),
+        totalInterest: ensureNumber(m.totalInterest),
+        weeks: ensureNumber(m.weeks)
+      })));
+
+      // Parse numeric fields for collections
+      setCollections(collectionsData.map((c: any) => ({
+        ...c,
+        weekNo: ensureNumber(c.weekNo),
+        amountPaid: ensureNumber(c.amountPaid),
+        principalPaid: ensureNumber(c.principalPaid),
+        interestPaid: ensureNumber(c.interestPaid)
+      })));
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(err instanceof Error ? err.message : 'Failed to connect to server');
@@ -217,20 +239,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!member) return null;
 
     const memberCollections = collections.filter(c => c.memberId === memberId);
-    const totalPrincipalCollected = memberCollections.reduce((sum, c) => sum + c.principalPaid, 0);
-    const totalInterestCollected = memberCollections.reduce((sum, c) => sum + c.interestPaid, 0);
-    const totalPayable = member.loanAmount + member.totalInterest;
+    const totalPrincipalCollected = memberCollections.reduce((sum, c) => sum + ensureNumber(c.principalPaid), 0);
+    const totalInterestCollected = memberCollections.reduce((sum, c) => sum + ensureNumber(c.interestPaid), 0);
+    const totalPayable = ensureNumber(member.loanAmount) + ensureNumber(member.totalInterest);
 
     return {
       memberId: member.memberId,
       memberName: member.memberName,
       groupNo: member.groupNo,
-      loanAmount: member.loanAmount,
+      loanAmount: ensureNumber(member.loanAmount),
       totalPayable,
       totalPrincipalCollected,
       totalInterestCollected,
-      principalBalance: member.loanAmount - totalPrincipalCollected,
-      interestBalance: member.totalInterest - totalInterestCollected,
+      principalBalance: ensureNumber(member.loanAmount) - totalPrincipalCollected,
+      interestBalance: ensureNumber(member.totalInterest) - totalInterestCollected,
       totalCollected: totalPrincipalCollected + totalInterestCollected,
       totalBalance: totalPayable - (totalPrincipalCollected + totalInterestCollected),
       weeksPaid: memberCollections.length,
@@ -249,12 +271,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const groupMembers = members.filter(m => m.groupNo === groupNo);
     const groupCollections = collections.filter(c => c.groupNo === groupNo);
 
-    const totalLoanAmount = groupMembers.reduce((sum, m) => sum + m.loanAmount, 0);
-    const totalInterestAmount = groupMembers.reduce((sum, m) => sum + m.totalInterest, 0);
+    const totalLoanAmount = groupMembers.reduce((sum, m) => sum + ensureNumber(m.loanAmount), 0);
+    const totalInterestAmount = groupMembers.reduce((sum, m) => sum + ensureNumber(m.totalInterest), 0);
     const totalPayable = totalLoanAmount + totalInterestAmount;
 
-    const principalCollected = groupCollections.reduce((sum, c) => sum + c.principalPaid, 0);
-    const interestCollected = groupCollections.reduce((sum, c) => sum + c.interestPaid, 0);
+    const principalCollected = groupCollections.reduce((sum, c) => sum + ensureNumber(c.principalPaid), 0);
+    const interestCollected = groupCollections.reduce((sum, c) => sum + ensureNumber(c.interestPaid), 0);
     const totalCollected = principalCollected + interestCollected;
 
     return {
@@ -279,12 +301,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [groups, getGroupSummary]);
 
   const getOverallSummary = useCallback((): OverallSummary => {
-    const totalLoanDisbursed = members.reduce((sum, m) => sum + m.loanAmount, 0);
-    const totalInterestAmount = members.reduce((sum, m) => sum + m.totalInterest, 0);
+    const totalLoanDisbursed = members.reduce((sum, m) => sum + ensureNumber(m.loanAmount), 0);
+    const totalInterestAmount = members.reduce((sum, m) => sum + ensureNumber(m.totalInterest), 0);
     const totalPayable = totalLoanDisbursed + totalInterestAmount;
 
-    const totalPrincipalCollected = collections.reduce((sum, c) => sum + c.principalPaid, 0);
-    const totalInterestCollected = collections.reduce((sum, c) => sum + c.interestPaid, 0);
+    const totalPrincipalCollected = collections.reduce((sum, c) => sum + ensureNumber(c.principalPaid), 0);
+    const totalInterestCollected = collections.reduce((sum, c) => sum + ensureNumber(c.interestPaid), 0);
     const totalAmountCollected = totalPrincipalCollected + totalInterestCollected;
 
     const activeLoans = members.filter(m => m.status === 'Active').length;
@@ -318,7 +340,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const weekCollections = collections.filter(c => c.weekNo === weekNo);
       weeklyData.push({
         weekNo,
-        amountCollected: weekCollections.reduce((sum, c) => sum + c.amountPaid, 0),
+        amountCollected: weekCollections.reduce((sum, c) => sum + ensureNumber(c.amountPaid), 0),
         numberOfPayments: weekCollections.length
       });
     }
@@ -377,7 +399,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const dateStr = date.toISOString();
       const res = await fetch(`${API_BASE}/collections/due?date=${dateStr}`);
-      return await handleResponse(res);
+      const data = await handleResponse(res);
+      return data.map((item: any) => ({
+        ...item,
+        loanAmount: ensureNumber(item.loanAmount),
+        totalInterest: ensureNumber(item.totalInterest),
+        weeklyInstallment: ensureNumber(item.weeklyInstallment),
+        totalPaid: ensureNumber(item.totalPaid),
+        paidToday: ensureNumber(item.paidToday),
+        amountDue: ensureNumber(item.amountDue),
+        outstandingBalance: ensureNumber(item.outstandingBalance)
+      }));
     } catch (err) {
       console.error('Error fetching due collections:', err);
       throw err;
