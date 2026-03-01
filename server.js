@@ -34,8 +34,8 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 // PostgreSQL connection
 const pool = new Pool({
-    // Hardcoded verified connection string
-    connectionString: 'postgresql://finance_db_u5rk_user:mrorwFig4OsnXJ3pLzV0vEdpYGHuRVdB@dpg-d5n1a16mcj7s73cct0ig-a.oregon-postgres.render.com/finance_db_u5rk',
+    // Use DATABASE_URL from environment variables (Render), or fallback to the Supabase connection string
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:Anyachan357%40@db.ryluttfhvqxsuqiayaqi.supabase.co:5432/postgres',
     ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: 10000 // Increased timeout for stability
 });
