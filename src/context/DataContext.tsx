@@ -464,7 +464,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const submitBulkCollection = useCallback(async (payments: any[]) => {
     try {
-      const { error: err } = await supabase.rpc('bulk_insert_collections', { payments: JSON.stringify(payments) });
+      const { error: err } = await supabase.rpc('bulk_insert_collections', { payments: payments });
       if (err) throw err;
       await fetchData();
     } catch (err: any) {
