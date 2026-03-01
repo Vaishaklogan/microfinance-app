@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import type { Group, Member, Collection, MemberSummary, GroupSummary, OverallSummary, WeeklyData, DueCollection } from '@/types';
-import { API_BASE } from '@/config/api';
-import { handleResponse } from '@/lib/error';
+import { supabase } from '@/config/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 interface DataContextType {
   groups: Group[];
@@ -36,6 +36,28 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+// Helper: convert snake_case DB row to camelCase
+function toCamelCase(row: any) {
+  if (!row) return null;
+  const result: any = {};
+  for (const key in row) {
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    result[camelKey] = row[key];
+  }
+  return result;
+}
+
+// Helper: convert camelCase object to snake_case for DB
+function toSnakeCase(obj: any) {
+  if (!obj) return null;
+  const result: any = {};
+  for (const key in obj) {
+    const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    result[snakeKey] = obj[key];
+  }
+  return result;
+}
+
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -50,49 +72,49 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return isNaN(num) ? 0 : num;
   };
 
-  // Fetch all data from backend
+  // Fetch all data from Supabase
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const [groupsRes, membersRes, collectionsRes] = await Promise.all([
-        fetch(`${API_BASE}/groups`),
-        fetch(`${API_BASE}/members`),
-        fetch(`${API_BASE}/collections`)
+        supabase.from('groups').select('*').order('group_no'),
+        supabase.from('members').select('*').order('member_id'),
+        supabase.from('collections').select('*').order('week_no').order('collection_date')
       ]);
 
-      if (!groupsRes.ok || !membersRes.ok || !collectionsRes.ok) {
-        throw new Error('Failed to fetch data from server');
-      }
+      if (groupsRes.error) throw groupsRes.error;
+      if (membersRes.error) throw membersRes.error;
+      if (collectionsRes.error) throw collectionsRes.error;
 
-      const [groupsData, membersData, collectionsData] = await Promise.all([
-        groupsRes.json(),
-        membersRes.json(),
-        collectionsRes.json()
-      ]);
-
-      setGroups(groupsData);
+      setGroups((groupsRes.data || []).map((r: any) => toCamelCase(r)!));
 
       // Parse numeric fields for members
-      setMembers(membersData.map((m: any) => ({
-        ...m,
-        loanAmount: ensureNumber(m.loanAmount),
-        totalInterest: ensureNumber(m.totalInterest),
-        weeks: ensureNumber(m.weeks)
-      })));
+      setMembers((membersRes.data || []).map((r: any) => {
+        const m = toCamelCase(r)!;
+        return {
+          ...m,
+          loanAmount: ensureNumber(m.loanAmount),
+          totalInterest: ensureNumber(m.totalInterest),
+          weeks: ensureNumber(m.weeks)
+        };
+      }));
 
       // Parse numeric fields for collections
-      setCollections(collectionsData.map((c: any) => ({
-        ...c,
-        weekNo: ensureNumber(c.weekNo),
-        amountPaid: ensureNumber(c.amountPaid),
-        principalPaid: ensureNumber(c.principalPaid),
-        interestPaid: ensureNumber(c.interestPaid)
-      })));
-    } catch (err) {
+      setCollections((collectionsRes.data || []).map((r: any) => {
+        const c = toCamelCase(r)!;
+        return {
+          ...c,
+          weekNo: ensureNumber(c.weekNo),
+          amountPaid: ensureNumber(c.amountPaid),
+          principalPaid: ensureNumber(c.principalPaid),
+          interestPaid: ensureNumber(c.interestPaid)
+        };
+      }));
+    } catch (err: any) {
       console.error('Error fetching data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to connect to server');
+      setError(err.message || 'Failed to connect to Supabase');
     } finally {
       setLoading(false);
     }
@@ -107,17 +129,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     await fetchData();
   }, [fetchData]);
 
-  // Group operations
+  // ============== GROUP OPERATIONS ==============
+
   const addGroup = useCallback(async (group: Omit<Group, 'id'>) => {
     try {
-      const res = await fetch(`${API_BASE}/groups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(group)
-      });
-      const newGroup = await handleResponse(res);
-      setGroups(prev => [...prev, newGroup]);
-    } catch (err) {
+      const id = uuidv4();
+      const dbRow = toSnakeCase({ id, ...group });
+      const { error: err } = await supabase.from('groups').insert(dbRow);
+      if (err) throw err;
+      setGroups(prev => [...prev, { id, ...group } as Group]);
+    } catch (err: any) {
       console.error('Error adding group:', err);
       throw err;
     }
@@ -125,14 +146,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateGroup = useCallback(async (id: string, group: Partial<Group>) => {
     try {
-      const res = await fetch(`${API_BASE}/groups/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(group)
-      });
-      const updatedGroup = await handleResponse(res);
-      setGroups(prev => prev.map(g => g.id === id ? updatedGroup : g));
-    } catch (err) {
+      const dbRow = toSnakeCase(group);
+      const { error: err } = await supabase.from('groups').update(dbRow).eq('id', id);
+      if (err) throw err;
+      setGroups(prev => prev.map(g => g.id === id ? { ...g, ...group } : g));
+    } catch (err: any) {
       console.error('Error updating group:', err);
       throw err;
     }
@@ -140,26 +158,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteGroup = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/groups/${id}`, { method: 'DELETE' });
-      await handleResponse(res);
+      const { error: err } = await supabase.from('groups').delete().eq('id', id);
+      if (err) throw err;
       setGroups(prev => prev.filter(g => g.id !== id));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting group:', err);
       throw err;
     }
   }, []);
 
-  // Member operations
+  // ============== MEMBER OPERATIONS ==============
+
   const addMember = useCallback(async (member: Omit<Member, 'id'>) => {
     try {
-      const res = await fetch(`${API_BASE}/members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(member)
-      });
-      const newMember = await handleResponse(res);
-      setMembers(prev => [...prev, newMember]);
-    } catch (err) {
+      const id = uuidv4();
+      const dbRow = toSnakeCase({ id, ...member });
+      const { error: err } = await supabase.from('members').insert(dbRow);
+      if (err) throw err;
+      setMembers(prev => [...prev, { id, ...member } as Member]);
+    } catch (err: any) {
       console.error('Error adding member:', err);
       throw err;
     }
@@ -167,14 +184,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateMember = useCallback(async (id: string, member: Partial<Member>) => {
     try {
-      const res = await fetch(`${API_BASE}/members/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(member)
-      });
-      const updatedMember = await handleResponse(res);
-      setMembers(prev => prev.map(m => m.id === id ? updatedMember : m));
-    } catch (err) {
+      const dbRow = toSnakeCase(member);
+      const { error: err } = await supabase.from('members').update(dbRow).eq('id', id);
+      if (err) throw err;
+      setMembers(prev => prev.map(m => m.id === id ? { ...m, ...member } : m));
+    } catch (err: any) {
       console.error('Error updating member:', err);
       throw err;
     }
@@ -182,26 +196,41 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteMember = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/members/${id}`, { method: 'DELETE' });
-      await handleResponse(res);
+      const { error: err } = await supabase.from('members').delete().eq('id', id);
+      if (err) throw err;
       setMembers(prev => prev.filter(m => m.id !== id));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting member:', err);
       throw err;
     }
   }, []);
 
-  // Collection operations - backend auto-calculates principal/interest
+  // ============== COLLECTION OPERATIONS ==============
+
   const addCollection = useCallback(async (collection: Omit<Collection, 'id' | 'principalPaid' | 'interestPaid'>) => {
     try {
-      const res = await fetch(`${API_BASE}/collections`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(collection)
+      const id = uuidv4();
+      // Use the RPC function for auto principal/interest split
+      const { data, error: err } = await supabase.rpc('insert_collection_auto_split', {
+        p_id: id,
+        p_collection_date: collection.collectionDate,
+        p_member_id: collection.memberId,
+        p_group_no: collection.groupNo,
+        p_week_no: collection.weekNo,
+        p_amount_paid: collection.amountPaid,
+        p_status: collection.status,
+        p_collected_by: collection.collectedBy
       });
-      const newCollection = await handleResponse(res);
-      setCollections(prev => [...prev, newCollection]);
-    } catch (err) {
+      if (err) throw err;
+      // Add the returned collection to state
+      const newCollection = data || {
+        id,
+        ...collection,
+        principalPaid: 0,
+        interestPaid: 0
+      };
+      setCollections(prev => [...prev, typeof newCollection === 'object' ? newCollection : { id, ...collection, principalPaid: 0, interestPaid: 0 }]);
+    } catch (err: any) {
       console.error('Error adding collection:', err);
       throw err;
     }
@@ -209,14 +238,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateCollection = useCallback(async (id: string, collection: Partial<Collection>) => {
     try {
-      const res = await fetch(`${API_BASE}/collections/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(collection)
-      });
-      const updatedCollection = await handleResponse(res);
-      setCollections(prev => prev.map(c => c.id === id ? updatedCollection : c));
-    } catch (err) {
+      const dbRow = toSnakeCase(collection);
+      const { error: err } = await supabase.from('collections').update(dbRow).eq('id', id);
+      if (err) throw err;
+      setCollections(prev => prev.map(c => c.id === id ? { ...c, ...collection } : c));
+    } catch (err: any) {
       console.error('Error updating collection:', err);
       throw err;
     }
@@ -224,16 +250,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteCollection = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/collections/${id}`, { method: 'DELETE' });
-      await handleResponse(res);
+      const { error: err } = await supabase.from('collections').delete().eq('id', id);
+      if (err) throw err;
       setCollections(prev => prev.filter(c => c.id !== id));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting collection:', err);
       throw err;
     }
   }, []);
 
-  // Summary calculations (computed locally from fetched data)
+  // ============== SUMMARY CALCULATIONS (computed locally) ==============
+
   const getMemberSummary = useCallback((memberId: string): MemberSummary | null => {
     const member = members.find(m => m.memberId === memberId);
     if (!member) return null;
@@ -361,7 +388,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
   }, [getAllMemberSummaries, members]);
 
-  // Export/Import
+  // ============== EXPORT/IMPORT ==============
+
   const exportToJSON = useCallback((): string => {
     return JSON.stringify({ groups, members, collections }, null, 2);
   }, [groups, members, collections]);
@@ -369,12 +397,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const importFromJSON = useCallback(async (json: string) => {
     try {
       const data = JSON.parse(json);
-      const res = await fetch(`${API_BASE}/data/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      await handleResponse(res);
+
+      // Import groups
+      if (data.groups && data.groups.length > 0) {
+        const dbRows = data.groups.map((g: any) => toSnakeCase(g));
+        const { error: err } = await supabase.from('groups').upsert(dbRows);
+        if (err) throw err;
+      }
+
+      // Import members
+      if (data.members && data.members.length > 0) {
+        const dbRows = data.members.map((m: any) => toSnakeCase(m));
+        const { error: err } = await supabase.from('members').upsert(dbRows);
+        if (err) throw err;
+      }
+
+      // Import collections
+      if (data.collections && data.collections.length > 0) {
+        const dbRows = data.collections.map((c: any) => toSnakeCase(c));
+        const { error: err } = await supabase.from('collections').upsert(dbRows);
+        if (err) throw err;
+      }
+
       await fetchData(); // Refresh data after import
     } catch (err) {
       console.error('Failed to import data:', err);
@@ -384,33 +428,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const clearAllData = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/data/clear`, { method: 'DELETE' });
-      await handleResponse(res);
+      const { error: err } = await supabase.rpc('clear_all_data');
+      if (err) throw err;
       setGroups([]);
       setMembers([]);
       setCollections([]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to clear data:', err);
       throw err;
     }
   }, []);
 
+  // ============== DAILY COLLECTION & BULK PAYMENT ==============
+
   const getDueCollections = useCallback(async (date: Date) => {
     try {
-      const dateStr = date.toISOString();
-      const res = await fetch(`${API_BASE}/collections/due?date=${dateStr}`);
-      const data = await handleResponse(res);
-      return data.map((item: any) => ({
+      const dateStr = date.toISOString().split('T')[0]; // yyyy-MM-dd format
+      const { data, error: err } = await supabase.rpc('get_due_collections', { target_date: dateStr });
+      if (err) throw err;
+
+      const rawData = data || [];
+      return rawData.map((item: any) => ({
         ...item,
-        loanAmount: ensureNumber(item.loanAmount),
-        totalInterest: ensureNumber(item.totalInterest),
         weeklyInstallment: ensureNumber(item.weeklyInstallment),
         totalPaid: ensureNumber(item.totalPaid),
         paidToday: ensureNumber(item.paidToday),
         amountDue: ensureNumber(item.amountDue),
         outstandingBalance: ensureNumber(item.outstandingBalance)
       }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching due collections:', err);
       throw err;
     }
@@ -418,14 +464,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const submitBulkCollection = useCallback(async (payments: any[]) => {
     try {
-      const res = await fetch(`${API_BASE}/collections/bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payments })
-      });
-      await handleResponse(res);
+      const { error: err } = await supabase.rpc('bulk_insert_collections', { payments: JSON.stringify(payments) });
+      if (err) throw err;
       await fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting bulk collections:', err);
       throw err;
     }
@@ -469,7 +511,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     getGroupSummary, getAllGroupSummaries,
     getOverallSummary, getWeeklyData,
     getCollectionsForWeek, getExpectedCollectionsForWeek,
-    exportToJSON, importFromJSON, clearAllData, refreshData, fetchData,
+    exportToJSON, importFromJSON, clearAllData, refreshData,
     getDueCollections, submitBulkCollection
   ]);
 
