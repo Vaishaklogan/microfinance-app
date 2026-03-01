@@ -35,7 +35,7 @@ app.use(express.static(path.join(__dirname, 'dist')));
 // PostgreSQL connection
 const pool = new Pool({
     // Use DATABASE_URL from environment variables (Render), or fallback to the Supabase connection string
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:Anyachan357%40@db.ryluttfhvqxsuqiayaqi.supabase.co:5432/postgres',
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:Anyachan357%40@db.goxfwpqgqvcriwdsthsz.supabase.co:5432/postgres',
     ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: 10000 // Increased timeout for stability
 });
