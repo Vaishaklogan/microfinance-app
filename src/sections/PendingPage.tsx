@@ -5,7 +5,7 @@ import { Loader2, CheckCircle, Clock, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Pending } from '@/types';
+import type { Pending } from '@/types';
 
 export function PendingPage() {
     const { pendings, members, bulkUpsertPendings } = useData();
