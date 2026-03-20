@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
-import { Save, Loader2, MapPin, Search } from 'lucide-react';
+import { Save, Loader2, MapPin, Search, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -178,6 +178,44 @@ export function WeeklyCollectionPage() {
         }
     };
 
+    const handleExport = () => {
+        const headers = ['Location', 'Group', 'Member ID', 'Member Name', 'Expected Amount', 'Collect Amount', 'Pending Amount'];
+        const rows: any[] = [];
+
+        groupedData.forEach(loc => {
+            loc.groups.forEach(grp => {
+                grp.members.forEach(m => {
+                    const collectAmt = payments[m.memberId] || 0;
+                    const pendAmt = pendingAmounts[m.memberId] || 0;
+                    rows.push([
+                        loc.landmark,
+                        grp.groupNo,
+                        m.memberId,
+                        `"${m.memberName}"`, // properly escape names that might have commas
+                        m.amountDue.toFixed(2),
+                        collectAmt,
+                        pendAmt
+                    ]);
+                });
+            });
+        });
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `weekly_collection_w${weekNo}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const hasMembers = groupedData.length > 0;
 
     return (
@@ -186,6 +224,12 @@ export function WeeklyCollectionPage() {
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Weekly Collection By Location</h2>
                     <p className="text-slate-500">Collect payments by selecting a week to view dues grouped by location.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={handleExport} disabled={!hasMembers}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export Excel
+                    </Button>
                 </div>
             </div>
 
