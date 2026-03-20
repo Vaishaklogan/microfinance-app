@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
-import type { Group, Member, Collection, MemberSummary, GroupSummary, OverallSummary, WeeklyData, DueCollection } from '@/types';
+import type { Group, Member, Collection, Pending, MemberSummary, GroupSummary, OverallSummary, WeeklyData, DueCollection } from '@/types';
 import { supabase } from '@/config/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -7,6 +7,7 @@ interface DataContextType {
   groups: Group[];
   members: Member[];
   collections: Collection[];
+  pendings: Pending[];
   loading: boolean;
   error: string | null;
   addGroup: (group: Omit<Group, 'id'>) => Promise<void>;
@@ -32,6 +33,7 @@ interface DataContextType {
   refreshData: () => Promise<void>;
   getDueCollections: (date: Date) => Promise<DueCollection[]>;
   submitBulkCollection: (payments: any[]) => Promise<void>;
+  bulkUpsertPendings: (pendings: any[]) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -62,6 +64,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [pendings, setPendings] = useState<Pending[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,15 +81,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
 
-      const [groupsRes, membersRes, collectionsRes] = await Promise.all([
+      const [groupsRes, membersRes, collectionsRes, pendingsRes] = await Promise.all([
         supabase.from('groups').select('*').order('group_no'),
         supabase.from('members').select('*').order('member_id'),
-        supabase.from('collections').select('*').order('week_no').order('collection_date')
+        supabase.from('collections').select('*').order('week_no').order('collection_date'),
+        supabase.from('pendings').select('*').order('week_no')
       ]);
 
       if (groupsRes.error) throw groupsRes.error;
       if (membersRes.error) throw membersRes.error;
       if (collectionsRes.error) throw collectionsRes.error;
+      if (pendingsRes.error) throw pendingsRes.error;
 
       setGroups((groupsRes.data || []).map((r: any) => toCamelCase(r)!));
 
@@ -110,6 +115,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           amountPaid: ensureNumber(c.amountPaid),
           principalPaid: ensureNumber(c.principalPaid),
           interestPaid: ensureNumber(c.interestPaid)
+        };
+      }));
+
+      // Parse pendings
+      setPendings((pendingsRes.data || []).map((r: any) => {
+        const p = toCamelCase(r)!;
+        return {
+          ...p,
+          weekNo: ensureNumber(p.weekNo),
+          amount: ensureNumber(p.amount)
         };
       }));
     } catch (err: any) {
@@ -391,8 +406,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // ============== EXPORT/IMPORT ==============
 
   const exportToJSON = useCallback((): string => {
-    return JSON.stringify({ groups, members, collections }, null, 2);
-  }, [groups, members, collections]);
+    return JSON.stringify({ groups, members, collections, pendings }, null, 2);
+  }, [groups, members, collections, pendings]);
 
   const importFromJSON = useCallback(async (json: string) => {
     try {
@@ -419,6 +434,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (err) throw err;
       }
 
+      // Import pendings
+      if (data.pendings && data.pendings.length > 0) {
+        const dbRows = data.pendings.map((p: any) => toSnakeCase(p));
+        const { error: err } = await supabase.from('pendings').upsert(dbRows);
+        if (err) throw err;
+      }
+
       await fetchData(); // Refresh data after import
     } catch (err) {
       console.error('Failed to import data:', err);
@@ -433,6 +455,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setGroups([]);
       setMembers([]);
       setCollections([]);
+      setPendings([]);
     } catch (err: any) {
       console.error('Failed to clear data:', err);
       throw err;
@@ -473,10 +496,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchData]);
 
+  const bulkUpsertPendings = useCallback(async (newPendings: any[]) => {
+    try {
+      const dbRows = newPendings.map(p => toSnakeCase(p));
+      const { error: err } = await supabase.rpc('bulk_upsert_pendings', { new_pendings: dbRows });
+      if (err) throw err;
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error submitting bulk pendings:', err);
+      throw err;
+    }
+  }, [fetchData]);
+
   const value = useMemo(() => ({
     groups,
     members,
     collections,
+    pendings,
     loading,
     error,
     addGroup,
@@ -501,9 +537,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     clearAllData,
     refreshData,
     getDueCollections,
-    submitBulkCollection
+    submitBulkCollection,
+    bulkUpsertPendings
   }), [
-    groups, members, collections, loading, error,
+    groups, members, collections, pendings, loading, error,
     addGroup, updateGroup, deleteGroup,
     addMember, updateMember, deleteMember,
     addCollection, updateCollection, deleteCollection,
@@ -512,7 +549,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     getOverallSummary, getWeeklyData,
     getCollectionsForWeek, getExpectedCollectionsForWeek,
     exportToJSON, importFromJSON, clearAllData, refreshData,
-    getDueCollections, submitBulkCollection
+    getDueCollections, submitBulkCollection, bulkUpsertPendings
   ]);
 
   return (

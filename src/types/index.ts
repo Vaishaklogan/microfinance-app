@@ -95,7 +95,7 @@ export interface WeeklyData {
   numberOfPayments: number;
 }
 
-export type ViewType = 'dashboard' | 'groups' | 'members' | 'collections' | 'dailyCollection' | 'memberSummary' | 'groupSummary' | 'overallSummary';
+export type ViewType = 'dashboard' | 'groups' | 'members' | 'collections' | 'dailyCollection' | 'weeklyCollection' | 'pending' | 'memberSummary' | 'groupSummary' | 'overallSummary';
 export interface DueCollection {
   memberId: string;
   memberName: string;
@@ -106,5 +106,16 @@ export interface DueCollection {
   paidToday: number;
   amountDue: number;
   outstandingBalance: number;
+}
+
+export interface Pending {
+  id: string;
+  memberId: string;
+  groupNo: string;
+  weekNo: number;
+  amount: number;
+  status: 'Ongoing' | 'Cleared';
+  createdAt: string;
+  clearedAt?: string;
 }
 

@@ -8,6 +8,8 @@ import { DailyCollectionPage } from '@/sections/DailyCollectionPage';
 import { MemberSummaryPage } from '@/sections/MemberSummaryPage';
 import { GroupSummaryPage } from '@/sections/GroupSummaryPage';
 import { OverallSummaryPage } from '@/sections/OverallSummaryPage';
+import { WeeklyCollectionPage } from '@/sections/WeeklyCollectionPage';
+import { PendingPage } from '@/sections/PendingPage';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
@@ -18,7 +20,9 @@ import {
   PieChart,
   TrendingUp,
   Menu,
-  X
+  X,
+  MapPin,
+  Clock
 } from 'lucide-react';
 import type { ViewType } from '@/types';
 import './App.css';
@@ -31,6 +35,8 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
     { view: 'groups', label: 'Groups', icon: Users },
     { view: 'members', label: 'Members', icon: UserCircle },
     { view: 'dailyCollection', label: 'Daily Collection', icon: Receipt },
+    { view: 'weeklyCollection', label: 'Weekly Collection', icon: MapPin },
+    { view: 'pending', label: 'Pending', icon: Clock },
     { view: 'collections', label: 'History', icon: Receipt },
     { view: 'memberSummary', label: 'Member Summary', icon: BarChart3 },
     { view: 'groupSummary', label: 'Group Summary', icon: PieChart },
@@ -54,8 +60,8 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
                 key={item.view}
                 variant={currentView === item.view ? 'secondary' : 'ghost'}
                 className={`w-full justify-start gap-3 ${currentView === item.view
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
                   }`}
                 onClick={() => setView(item.view)}
               >
@@ -93,8 +99,8 @@ function Navigation({ currentView, setView }: { currentView: ViewType; setView: 
                   key={item.view}
                   variant={currentView === item.view ? 'secondary' : 'ghost'}
                   className={`w-full justify-start gap-3 ${currentView === item.view
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-300'
                     }`}
                   onClick={() => {
                     setView(item.view);
@@ -131,6 +137,10 @@ function MainContent({ view }: { view: ViewType }) {
       return <GroupSummaryPage />;
     case 'overallSummary':
       return <OverallSummaryPage />;
+    case 'weeklyCollection':
+      return <WeeklyCollectionPage />;
+    case 'pending':
+      return <PendingPage />;
     default:
       return <Dashboard />;
   }
