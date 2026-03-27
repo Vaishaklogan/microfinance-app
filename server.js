@@ -265,7 +265,7 @@ app.get('/api/collections/due', async (req, res) => {
 
             // Calculate which week number this date falls into relative to member start date
             // Week 1 starts on startDate.
-            const weeksPassed = differenceInCalendarWeeks(selectedDate, startDate, { weekStartsOn: 1 }); // Assuming Monday start, adjust as needed
+            const weeksPassed = differenceInCalendarWeeks(selectedDate, startDate, { weekStartsOn: 0 }); // Assuming Sunday start
             const currentWeekNo = weeksPassed + 1;
 
             // If updated date is before start date, or after loan completion, handle accordingly
@@ -314,7 +314,7 @@ app.get('/api/collections/due', async (req, res) => {
         // Showing all active members for now, sorting by Group
         const result = members.map(member => {
             const startDate = parseISO(member.startDate);
-            const weeksPassed = differenceInCalendarWeeks(selectedDate, startDate, { weekStartsOn: 1 });
+            const weeksPassed = differenceInCalendarWeeks(selectedDate, startDate, { weekStartsOn: 0 });
             const currentWeekNo = weeksPassed + 1;
 
             // If loan hasn't started, skip

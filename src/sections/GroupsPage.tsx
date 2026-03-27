@@ -28,7 +28,7 @@ export function GroupsPage() {
     groupName: '',
     groupHeadName: '',
     headContact: '',
-    meetingDay: 'Monday',
+    meetingDay: 'Sunday',
     formationDate: new Date().toISOString().split('T')[0]
   });
 
@@ -55,7 +55,7 @@ export function GroupsPage() {
         groupName: '',
         groupHeadName: '',
         headContact: '',
-        meetingDay: 'Monday',
+        meetingDay: 'Sunday',
         formationDate: new Date().toISOString().split('T')[0]
       });
       setIsAddDialogOpen(false);
@@ -95,7 +95,7 @@ export function GroupsPage() {
       groupName: '',
       groupHeadName: '',
       headContact: '',
-      meetingDay: 'Monday',
+      meetingDay: 'Sunday',
       formationDate: new Date().toISOString().split('T')[0]
     });
   };
