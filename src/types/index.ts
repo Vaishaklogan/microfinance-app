@@ -107,6 +107,7 @@ export interface DueCollection {
   amountDue: number;
   outstandingBalance: number;
   weeks: number;
+  landmark: string;
 }
 
 export interface Pending {
