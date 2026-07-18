@@ -12,7 +12,7 @@ import { ApiError } from '@/lib/error';
 import { ErrorDialog } from '@/components/ErrorDialog';
 
 export function DailyCollectionPage() {
-    const { getDueCollections, submitBulkCollection } = useData();
+    const { getDueCollections, submitBulkCollection, members } = useData();
     const [date, setDate] = useState<Date>(new Date());
     const [loading, setLoading] = useState(false);
     const [dues, setDues] = useState<DueCollection[]>([]);
@@ -135,10 +135,17 @@ export function DailyCollectionPage() {
     };
 
     const groupedData = useMemo(() => {
+        // Build a lookup map from memberId -> landmark using the full members list
+        const landmarkMap: Record<string, string> = {};
+        members.forEach(m => {
+            landmarkMap[m.memberId] = m.landmark?.trim() || 'Unassigned Location';
+        });
+
         const locationsMap: Record<string, Record<string, DueCollection[]>> = {};
 
         dues.forEach(m => {
-            const loc = m.landmark || 'Unassigned Location';
+            // Use landmark from members context (always populated), fallback to API value
+            const loc = landmarkMap[m.memberId] || m.landmark?.trim() || 'Unassigned Location';
             const grp = m.groupNo || 'Unassigned Group';
 
             if (!locationsMap[loc]) locationsMap[loc] = {};
