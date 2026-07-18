@@ -353,7 +353,8 @@ app.get('/api/collections/due', async (req, res) => {
                 totalPaid,
                 paidToday,
                 amountDue: Math.round(amountDue * 100) / 100,
-                outstandingBalance: Math.round(outstandingBalance * 100) / 100
+                outstandingBalance: Math.round(outstandingBalance * 100) / 100,
+                weeks: member.weeks
             };
         }).filter(item => item !== null && item.outstandingBalance > 0).sort((a, b) => a.groupNo.localeCompare(b.groupNo));
 

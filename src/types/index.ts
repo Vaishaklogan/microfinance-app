@@ -106,6 +106,7 @@ export interface DueCollection {
   paidToday: number;
   amountDue: number;
   outstandingBalance: number;
+  weeks: number;
 }
 
 export interface Pending {

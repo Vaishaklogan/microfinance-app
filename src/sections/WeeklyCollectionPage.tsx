@@ -19,6 +19,7 @@ export function WeeklyCollectionPage() {
     const [weekNo, setWeekNo] = useState<number>(initialWeek);
     const [payments, setPayments] = useState<Record<string, string>>({});
     const [pendingAmounts, setPendingAmounts] = useState<Record<string, string>>({});
+    const [remarks, setRemarks] = useState<Record<string, string>>({});
     const [isSaving, setIsSaving] = useState(false);
 
     // Sync input when initialWeek is computed the first time
@@ -64,6 +65,7 @@ export function WeeklyCollectionPage() {
                 weeklyInstallment,
                 paidThisWeek,
                 amountDue,
+                weeks: m.weeks
             };
 
             if (!locationsMap[loc]) locationsMap[loc] = {};
@@ -115,6 +117,10 @@ export function WeeklyCollectionPage() {
 
     const handlePendingChange = (memberId: string, amount: string) => {
         setPendingAmounts(prev => ({ ...prev, [memberId]: amount }));
+    };
+
+    const handleRemarksChange = (memberId: string, remark: string) => {
+        setRemarks(prev => ({ ...prev, [memberId]: remark }));
     };
 
     const handleSave = async () => {
@@ -179,7 +185,7 @@ export function WeeklyCollectionPage() {
     };
 
     const handleExport = () => {
-        const headers = ['Location', 'Group', 'Member ID', 'Member Name', 'Expected Amount', 'Collect Amount', 'Pending Amount'];
+        const headers = ['Location', 'Group', 'Member ID', 'Member Name', 'Week', 'Expected Amount', 'Collect Amount', 'Pending Amount', 'Remarks'];
         const rows: any[] = [];
 
         groupedData.forEach(loc => {
@@ -187,14 +193,17 @@ export function WeeklyCollectionPage() {
                 grp.members.forEach(m => {
                     const collectAmt = payments[m.memberId] || 0;
                     const pendAmt = pendingAmounts[m.memberId] || 0;
+                    const remark = remarks[m.memberId] || '';
                     rows.push([
                         loc.landmark,
                         grp.groupNo,
                         m.memberId,
-                        `"${m.memberName}"`, // properly escape names that might have commas
+                        `"${m.memberName}"`,
+                        `"${weekNo}/${m.weeks}"`,
                         m.amountDue.toFixed(2),
                         collectAmt,
-                        pendAmt
+                        pendAmt,
+                        `"${remark}"`
                     ]);
                 });
             });
@@ -284,9 +293,11 @@ export function WeeklyCollectionPage() {
                                                     <tr>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold">Member ID</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold">Member Name</th>
+                                                        <th className="px-4 py-3 h-10 align-middle font-semibold text-center">Week</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold text-right">Expected amount</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold text-right w-40 bg-blue-50/50">Collect Amount</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold text-right w-40 bg-amber-50/50">Pending Amount</th>
+                                                        <th className="px-4 py-3 h-10 align-middle font-semibold w-48">Remarks</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y">
@@ -296,6 +307,7 @@ export function WeeklyCollectionPage() {
                                                             <tr key={m.memberId} className="hover:bg-slate-50/80 transition-colors">
                                                                 <td className="px-4 py-3 font-medium text-slate-600">{m.memberId}</td>
                                                                 <td className="px-4 py-3 font-medium text-slate-900">{m.memberName}</td>
+                                                                <td className="px-4 py-3 text-center text-slate-600 font-medium whitespace-nowrap">{weekNo}/{m.weeks}</td>
                                                                 <td className="px-4 py-3 text-right text-slate-600">
                                                                     ₹{m.amountDue.toFixed(2)}
                                                                 </td>
@@ -327,6 +339,15 @@ export function WeeklyCollectionPage() {
                                                                             step="0.01"
                                                                         />
                                                                     </div>
+                                                                </td>
+                                                                <td className="px-4 py-2">
+                                                                    <input
+                                                                        type="text"
+                                                                        className="w-full p-1.5 border rounded outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                                                                        placeholder="Remarks..."
+                                                                        value={remarks[m.memberId] ?? ''}
+                                                                        onChange={(e) => handleRemarksChange(m.memberId, e.target.value)}
+                                                                    />
                                                                 </td>
                                                             </tr>
                                                         );

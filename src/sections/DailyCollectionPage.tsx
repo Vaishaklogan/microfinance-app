@@ -17,6 +17,7 @@ export function DailyCollectionPage() {
     const [loading, setLoading] = useState(false);
     const [dues, setDues] = useState<DueCollection[]>([]);
     const [payments, setPayments] = useState<Record<string, string>>({}); // memberId -> amount
+    const [remarks, setRemarks] = useState<Record<string, string>>({}); // memberId -> remarks
     const [error, setError] = useState<ApiError | Error | null>(null);
     const [isErrorOpen, setIsErrorOpen] = useState(false);
 
@@ -50,6 +51,10 @@ export function DailyCollectionPage() {
 
     const handleAmountChange = (memberId: string, amount: string) => {
         setPayments(prev => ({ ...prev, [memberId]: amount }));
+    };
+
+    const handleRemarksChange = (memberId: string, remark: string) => {
+        setRemarks(prev => ({ ...prev, [memberId]: remark }));
     };
 
     const handleSave = async () => {
@@ -88,15 +93,16 @@ export function DailyCollectionPage() {
 
     const handleExport = () => {
         // Generate CSV
-        const headers = ['Group', 'Member ID', 'Member Name', 'Week No', 'Due Amount', 'Paid Amount', 'Balance'];
+        const headers = ['Group', 'Member ID', 'Member Name', 'Week No', 'Due Amount', 'Paid Amount', 'Balance', 'Remarks'];
         const rows = dues.map(d => [
             d.groupNo,
             d.memberId,
-            d.memberName,
-            d.weekNo,
+            `"${d.memberName}"`,
+            `"${d.weekNo}/${d.weeks}"`,
             d.amountDue,
             payments[d.memberId] || 0,
-            (d.amountDue - parseFloat(payments[d.memberId] || '0')).toFixed(2)
+            (d.amountDue - parseFloat(payments[d.memberId] || '0')).toFixed(2),
+            `"${remarks[d.memberId] || ''}"`
         ]);
 
         const csvContent = [
@@ -152,6 +158,7 @@ export function DailyCollectionPage() {
                                 <th className="px-6 py-3 text-right">Due Amount</th>
                                 <th className="px-6 py-3 w-48">Collected Amount</th>
                                 <th className="px-6 py-3 text-right">Balance</th>
+                                <th className="px-6 py-3 w-48">Remarks</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -180,7 +187,7 @@ export function DailyCollectionPage() {
                                                 <div className="font-medium">{item.memberName}</div>
                                                 <div className="text-xs text-slate-500">{item.memberId}</div>
                                             </td>
-                                            <td className="px-6 py-4">{item.weekNo}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap">{item.weekNo}/{item.weeks}</td>
                                             <td className="px-6 py-4 text-right font-medium text-slate-900">
                                                 ₹{item.amountDue.toFixed(2)}
                                             </td>
@@ -194,6 +201,15 @@ export function DailyCollectionPage() {
                                             </td>
                                             <td className={cn("px-6 py-4 text-right font-medium", balance > 0 ? "text-red-600" : "text-green-600")}>
                                                 ₹{balance.toFixed(2)}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <input
+                                                    type="text"
+                                                    className="w-full p-1 border rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                                    placeholder="Remarks..."
+                                                    value={remarks[item.memberId] || ''}
+                                                    onChange={(e) => handleRemarksChange(item.memberId, e.target.value)}
+                                                />
                                             </td>
                                         </tr>
                                     );
