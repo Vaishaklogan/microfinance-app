@@ -199,7 +199,7 @@ export function WeeklyCollectionPage() {
                         grp.groupNo,
                         m.memberId,
                         `"${m.memberName}"`,
-                        `"${weekNo}/${m.weeks}"`,
+                        weekNo,
                         m.amountDue.toFixed(2),
                         collectAmt,
                         pendAmt,
@@ -307,7 +307,7 @@ export function WeeklyCollectionPage() {
                                                             <tr key={m.memberId} className="hover:bg-slate-50/80 transition-colors">
                                                                 <td className="px-4 py-3 font-medium text-slate-600">{m.memberId}</td>
                                                                 <td className="px-4 py-3 font-medium text-slate-900">{m.memberName}</td>
-                                                                <td className="px-4 py-3 text-center text-slate-600 font-medium whitespace-nowrap">{weekNo}/{m.weeks}</td>
+                                                                <td className="px-4 py-3 text-center text-slate-600 font-medium whitespace-nowrap">{weekNo}</td>
                                                                 <td className="px-4 py-3 text-right text-slate-600">
                                                                     ₹{m.amountDue.toFixed(2)}
                                                                 </td>

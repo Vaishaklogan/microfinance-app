@@ -98,7 +98,7 @@ export function DailyCollectionPage() {
             d.groupNo,
             d.memberId,
             `"${d.memberName}"`,
-            `"${d.weekNo}/${d.weeks}"`,
+            d.weekNo,
             d.amountDue,
             payments[d.memberId] || 0,
             (d.amountDue - parseFloat(payments[d.memberId] || '0')).toFixed(2),
@@ -187,7 +187,7 @@ export function DailyCollectionPage() {
                                                 <div className="font-medium">{item.memberName}</div>
                                                 <div className="text-xs text-slate-500">{item.memberId}</div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{item.weekNo}/{item.weeks}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap">{item.weekNo}</td>
                                             <td className="px-6 py-4 text-right font-medium text-slate-900">
                                                 ₹{item.amountDue.toFixed(2)}
                                             </td>
