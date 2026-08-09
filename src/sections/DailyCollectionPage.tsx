@@ -17,6 +17,7 @@ export function DailyCollectionPage() {
     const [loading, setLoading] = useState(false);
     const [dues, setDues] = useState<DueCollection[]>([]);
     const [payments, setPayments] = useState<Record<string, string>>({});
+    const [pendingAmounts, setPendingAmounts] = useState<Record<string, string>>({});
     const [remarks, setRemarks] = useState<Record<string, string>>({});
     const [cash, setCash] = useState<Record<string, string>>({});
     const [gpay, setGpay] = useState<Record<string, string>>({});
@@ -31,10 +32,17 @@ export function DailyCollectionPage() {
             const data = await getDueCollections(selectedDate);
             setDues(data);
             const initialPayments: Record<string, string> = {};
+            const initialPending: Record<string, string> = {};
             data.forEach(d => {
                 initialPayments[d.memberId] = d.amountDue.toString();
+                // Arrears = outstanding balance beyond current week's installment
+                const arrears = Math.max(0, d.outstandingBalance - d.weeklyInstallment);
+                if (arrears > 0) {
+                    initialPending[d.memberId] = arrears.toFixed(2);
+                }
             });
             setPayments(initialPayments);
+            setPendingAmounts(initialPending);
         } catch (error) {
             console.error(error);
             setError(error instanceof Error ? error : new Error('Unknown error'));
@@ -51,6 +59,8 @@ export function DailyCollectionPage() {
     const handleAmountChange = (memberId: string, amount: string) => {
         setPayments(prev => ({ ...prev, [memberId]: amount }));
     };
+
+    const handlePendingChange = (memberId: string, val: string) => setPendingAmounts(prev => ({ ...prev, [memberId]: val }));
 
     const handleRemarksChange = (memberId: string, remark: string) => setRemarks(prev => ({ ...prev, [memberId]: remark }));
     const handleCashChange = (memberId: string, val: string) => setCash(prev => ({ ...prev, [memberId]: val }));
@@ -91,14 +101,12 @@ export function DailyCollectionPage() {
     };
 
     const handleExport = () => {
-        const headers = ['Location', 'Group', 'Member ID', 'Member Name', 'Week No', 'Due Amount', 'Collected Amount', 'Balance', 'Remarks', 'Cash', 'GPay', 'Due', 'Total'];
+        const headers = ['Location', 'Group', 'Member ID', 'Member Name', 'Week No', 'Due Amount', 'Collected Amount', 'Pending Amount', 'Balance', 'Remarks', 'Cash', 'GPay', 'Due', 'Total'];
         const rows: any[] = [];
 
         groupedData.forEach(locData => {
             locData.groups.forEach(grpData => {
                 grpData.members.forEach(item => {
-                    const paid = parseFloat(payments[item.memberId] || '0');
-                    const balance = item.amountDue - paid;
                     rows.push([
                         locData.landmark,
                         item.groupNo,
@@ -107,7 +115,8 @@ export function DailyCollectionPage() {
                         item.weekNo,
                         item.amountDue,
                         payments[item.memberId] || 0,
-                        balance.toFixed(2),
+                        pendingAmounts[item.memberId] || 0,
+                        (item.amountDue - parseFloat(payments[item.memberId] || '0')).toFixed(2),
                         `"${remarks[item.memberId] || ''}"`,
                         `"${cash[item.memberId] || ''}"`,
                         `"${gpay[item.memberId] || ''}"`,
@@ -237,6 +246,7 @@ export function DailyCollectionPage() {
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold text-center">Week</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold text-right">Due Amount</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold text-right w-40 bg-blue-50/50">Collected Amount</th>
+                                                        <th className="px-4 py-3 h-10 align-middle font-semibold text-right w-40 bg-amber-50/50">Pending Amount</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold text-right w-32">Balance</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold w-40">Remarks</th>
                                                         <th className="px-4 py-3 h-10 align-middle font-semibold w-24">Cash</th>
@@ -265,6 +275,19 @@ export function DailyCollectionPage() {
                                                                             className="w-full text-right p-1.5 border rounded outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium text-slate-900"
                                                                             value={payments[item.memberId] ?? ''}
                                                                             onChange={(e) => handleAmountChange(item.memberId, e.target.value)}
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                        />
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2 bg-amber-50/30">
+                                                                    <div className="flex items-center justify-end">
+                                                                        <span className="text-slate-500 mr-2 text-xs">₹</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            className="w-full text-right p-1.5 border rounded outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all font-medium text-amber-700"
+                                                                            value={pendingAmounts[item.memberId] ?? ''}
+                                                                            onChange={(e) => handlePendingChange(item.memberId, e.target.value)}
                                                                             min="0"
                                                                             step="0.01"
                                                                         />

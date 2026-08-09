@@ -58,8 +58,14 @@ export function WeeklyCollectionPage() {
             const paidThisWeek = memberCollectionsForWeek.reduce((sum, c) => sum + (c.amountPaid || 0), 0);
             const amountDue = weeklyInstallment - paidThisWeek;
 
-            // Only show members who still have something to pay this week
-            if (amountDue <= 0) return;
+            // Calculate arrears: total expected up to PREVIOUS week minus total paid overall
+            const allMemberCollections = collections.filter(c => c.memberId === m.memberId);
+            const totalPaidOverall = allMemberCollections.reduce((sum, c) => sum + (c.amountPaid || 0), 0);
+            const totalExpectedPrevWeek = weeklyInstallment * Math.max(0, weekNo - 1);
+            const arrears = Math.max(0, totalExpectedPrevWeek - totalPaidOverall);
+
+            // Only show members who still have something to pay this week OR have arrears
+            if (amountDue <= 0 && arrears <= 0) return;
 
             const memberData = {
                 memberId: m.memberId,
@@ -68,7 +74,8 @@ export function WeeklyCollectionPage() {
                 landmark: loc,
                 weeklyInstallment,
                 paidThisWeek,
-                amountDue,
+                amountDue: Math.max(0, amountDue),
+                arrears,
                 weeks: m.weeks
             };
 
@@ -102,17 +109,22 @@ export function WeeklyCollectionPage() {
         });
     }, [members, collections, weekNo]);
 
-    // Pre-fill payments when weekNo or groupedData changes
+    // Pre-fill payments and pending amounts when weekNo or groupedData changes
     useEffect(() => {
         const initialPayments: Record<string, string> = {};
+        const initialPending: Record<string, string> = {};
         groupedData.forEach(loc => {
             loc.groups.forEach(grp => {
                 grp.members.forEach(m => {
-                    initialPayments[m.memberId] = m.amountDue.toString();
+                    initialPayments[m.memberId] = m.amountDue > 0 ? m.amountDue.toString() : '';
+                    if (m.arrears > 0) {
+                        initialPending[m.memberId] = m.arrears.toString();
+                    }
                 });
             });
         });
         setPayments(initialPayments);
+        setPendingAmounts(initialPending);
     }, [groupedData]);
 
     const handleAmountChange = (memberId: string, amount: string) => {
